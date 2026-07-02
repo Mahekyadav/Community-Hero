@@ -1,0 +1,6 @@
+{
+  "name": "Community Hero",
+  "description": "AI-Powered Civic Engagement Platform for citizens, municipal officers, and admins to collaborate, report, and resolve civic issues.",
+  "requestFramePermissions": ["geolocation", "camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

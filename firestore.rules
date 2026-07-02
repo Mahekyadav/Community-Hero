@@ -1,0 +1,100 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // 1. Users collection
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isOwner(userId)
+                    && incoming().uid == userId
+                    && incoming().role in ['citizen', 'officer', 'admin']
+                    && incoming().heroPoints == 0
+                    && incoming().badges.size() == 0;
+      allow update: if isSignedIn() && isOwner(userId)
+                    && incoming().uid == userId
+                    && incoming().role == existing().role // Forbid role changes
+                    // Forbid email changes
+                    && incoming().email == existing().email;
+      // Allow officers/admins to read and update
+      allow write: if isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+                    && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['officer', 'admin'];
+    }
+
+    // 2. Issues collection
+    match /issues/{issueId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+                    && incoming().id == issueId
+                    && incoming().createdBy == request.auth.uid
+                    && incoming().status == 'Pending'
+                    && incoming().upvotesCount == 0
+                    && incoming().verificationsCount == 0;
+      allow update: if isSignedIn() && (
+        // Creator editing their own issue before it is assigned/resolved
+        (existing().createdBy == request.auth.uid && existing().status == 'Pending' &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['title', 'description', 'category', 'imageUrl', 'priority', 'updatedAt'])) ||
+        // Upvote or verification by another citizen
+        (incoming().diff(existing()).affectedKeys().hasAny(['upvotesCount', 'verificationsCount', 'confidenceScore', 'updatedAt']) &&
+          incoming().createdBy == existing().createdBy &&
+          incoming().status == existing().status) ||
+        // Officers or Admins updating status and assignment
+        (
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['officer', 'admin'] &&
+          incoming().diff(existing()).affectedKeys().hasAny(['status', 'assignedOfficerId', 'assignedOfficerName', 'updatedAt', 'priority'])
+        )
+      );
+      allow delete: if isSignedIn() && (
+        existing().createdBy == request.auth.uid ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+      );
+
+      // Comments subcollection
+      match /comments/{commentId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn()
+                      && incoming().id == commentId
+                      && incoming().issueId == issueId
+                      && incoming().userId == request.auth.uid;
+        allow delete: if isSignedIn() && (
+          existing().userId == request.auth.uid ||
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+        );
+      }
+    }
+
+    // 3. Notifications collection
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn(); // Allow any signed-in user or officer to dispatch notification
+      allow update: if isSignedIn() && existing().userId == request.auth.uid
+                    && incoming().diff(existing()).affectedKeys().hasOnly(['read']);
+      allow delete: if isSignedIn() && existing().userId == request.auth.uid;
+    }
+  }
+}

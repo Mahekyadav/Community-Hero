@@ -1,0 +1,98 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User profile containing roles, hero points, and badges.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "The unique user ID matching their Firebase Auth UID." },
+        "displayName": { "type": "string", "description": "User's display name." },
+        "email": { "type": "string", "description": "User's email address." },
+        "role": { "type": "string", "enum": ["citizen", "officer", "admin"], "description": "User's platform role." },
+        "heroPoints": { "type": "number", "description": "Gamification points earned." },
+        "badges": { "type": "array", "description": "List of earned badges." },
+        "departmentId": { "type": "string", "description": "Assigned department ID for officers." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Profile creation timestamp." }
+      },
+      "required": ["uid", "displayName", "email", "role", "heroPoints", "badges", "createdAt"]
+    },
+    "Issue": {
+      "title": "Civic Issue Report",
+      "description": "A reported civic issue with details, status, location, and AI suggestions.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique issue ID." },
+        "title": { "type": "string", "description": "Issue summary." },
+        "description": { "type": "string", "description": "Detailed description of the issue." },
+        "category": { "type": "string", "enum": ["Road Damage", "Garbage", "Water Leakage", "Street Light", "Electricity", "Traffic", "Public Safety", "Other"], "description": "Issue category." },
+        "imageUrl": { "type": "string", "description": "URL of the uploaded image of the issue." },
+        "latitude": { "type": "number", "description": "Latitude of the reported issue location." },
+        "longitude": { "type": "number", "description": "Longitude of the reported issue location." },
+        "address": { "type": "string", "description": "Readable address of the location." },
+        "priority": { "type": "string", "enum": ["Low", "Medium", "High", "Critical"], "description": "Priority level estimated or confirmed." },
+        "status": { "type": "string", "enum": ["Pending", "Verified", "Assigned", "In Progress", "Resolved", "Closed"], "description": "Current status of resolution." },
+        "createdBy": { "type": "string", "description": "UID of the citizen who reported the issue." },
+        "creatorName": { "type": "string", "description": "Display name of the citizen." },
+        "assignedOfficerId": { "type": "string", "description": "UID of the assigned municipal officer." },
+        "assignedOfficerName": { "type": "string", "description": "Display name of the officer." },
+        "upvotesCount": { "type": "number", "description": "Number of upvotes on this issue." },
+        "verificationsCount": { "type": "number", "description": "Number of community verifications." },
+        "confidenceScore": { "type": "number", "description": "Calculated civic priority and confidence level." },
+        "aiAnalysis": { "type": "object", "description": "AI assessment from Gemini." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Issue report timestamp." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Last update timestamp." }
+      },
+      "required": ["id", "title", "description", "category", "latitude", "longitude", "priority", "status", "createdBy", "creatorName", "upvotesCount", "verificationsCount", "confidenceScore", "createdAt", "updatedAt"]
+    },
+    "Comment": {
+      "title": "Issue Comment",
+      "description": "User comments or supporting messages on reported issues.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Comment unique ID." },
+        "issueId": { "type": "string", "description": "Target issue ID." },
+        "userId": { "type": "string", "description": "Author user ID." },
+        "userName": { "type": "string", "description": "Author display name." },
+        "userRole": { "type": "string", "description": "Author platform role." },
+        "content": { "type": "string", "description": "Text content of the comment." },
+        "isVerification": { "type": "boolean", "description": "Whether this comment serves as a verified confirmation of the issue." },
+        "imageUrl": { "type": "string", "description": "Optional supporting image URL uploaded with the comment." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Comment timestamp." }
+      },
+      "required": ["id", "issueId", "userId", "userName", "userRole", "content", "isVerification", "createdAt"]
+    },
+    "Notification": {
+      "title": "Platform Notification",
+      "description": "Notification message dispatched to a user.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Notification unique ID." },
+        "userId": { "type": "string", "description": "Target user ID." },
+        "title": { "type": "string", "description": "Notification title." },
+        "message": { "type": "string", "description": "Notification body text." },
+        "read": { "type": "boolean", "description": "Whether the notification has been read." },
+        "relatedIssueId": { "type": "string", "description": "Related issue ID, if any." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp." }
+      },
+      "required": ["id", "userId", "title", "message", "read", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "#/entities/User",
+      "description": "User profiles and gamification stats."
+    },
+    "/issues/{issueId}": {
+      "schema": "#/entities/Issue",
+      "description": "Civic issues posted by community."
+    },
+    "/issues/{issueId}/comments/{commentId}": {
+      "schema": "#/entities/Comment",
+      "description": "Subcollection of comments/verifications on issues."
+    },
+    "/notifications/{notificationId}": {
+      "schema": "#/entities/Notification",
+      "description": "Notifications for tracking issue status updates."
+    }
+  }
+}
